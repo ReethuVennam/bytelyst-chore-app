@@ -3,10 +3,11 @@ import './App.css';
 
 function App() {
   const [chores, setChores] = useState([]);
+  const [rewards, setRewards] = useState([]);
+  const [totalPoints, setTotalPoints] = useState(0);
+
   const [newChoreName, setNewChoreName] = useState('');
   const [newChorePoints, setNewChorePoints] = useState('');
-
-  const [rewards, setRewards] = useState([]);
   const [newRewardName, setNewRewardName] = useState('');
   const [newRewardPoints, setNewRewardPoints] = useState('');
 
@@ -17,9 +18,16 @@ function App() {
         const choreData = await choreResponse.json();
         setChores(choreData);
 
+        const initialPoints = choreData
+          .filter(chore => chore.completed)
+          .reduce((sum, chore) => sum + chore.points, 0);
+        
         const rewardResponse = await fetch('http://localhost:5000/api/rewards');
         const rewardData = await rewardResponse.json();
         setRewards(rewardData);
+        
+        setTotalPoints(initialPoints); 
+
       } catch (error) {
         console.error("Error fetching data:", error);
       }
@@ -44,7 +52,7 @@ function App() {
       console.error('Error creating chore:', error);
     }
   };
-  
+
   const deleteChore = async (choreId) => {
     try {
       await fetch(`http://localhost:5000/api/chores/${choreId}`, {
@@ -74,16 +82,40 @@ function App() {
     }
   };
 
-  // NEW: Function to handle deleting a reward
   const deleteReward = async (rewardId) => {
     try {
       await fetch(`http://localhost:5000/api/rewards/${rewardId}`, {
         method: 'DELETE',
       });
-      // Update the UI by filtering out the deleted reward
       setRewards(rewards.filter((reward) => reward._id !== rewardId));
     } catch (error) {
       console.error('Error deleting reward:', error);
+    }
+  };
+
+  const handleCompleteChore = async (choreToComplete) => {
+    if (choreToComplete.completed) return;
+    try {
+      const response = await fetch(`http://localhost:5000/api/chores/${choreToComplete._id}/complete`, {
+        method: 'PATCH',
+      });
+      const updatedChore = await response.json();
+
+      setTotalPoints(totalPoints + updatedChore.points);
+      setChores(chores.map(chore => 
+        chore._id === updatedChore._id ? updatedChore : chore
+      ));
+    } catch (error) {
+      console.error("Error completing chore:", error);
+    }
+  };
+  
+  const handleRedeemReward = (rewardToRedeem) => {
+    if (totalPoints >= rewardToRedeem.points) {
+      setTotalPoints(totalPoints - rewardToRedeem.points);
+      alert(`You have redeemed "${rewardToRedeem.name}"!`);
+    } else {
+      alert("You don't have enough points for this reward!");
     }
   };
 
@@ -91,6 +123,9 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h1>Chore & Reward App</h1>
+        <div className="points-display">
+          <h2>Total Points: {totalPoints}</h2>
+        </div>
       </header>
       <main className="container">
         {/* Chores Section */}
@@ -104,16 +139,19 @@ function App() {
             </form>
           </div>
           <div className="list-container">
-            {chores.length === 0 ? <p>No chores available.</p> : (
-              <ul>
-                {chores.map((chore) => (
-                  <li key={chore._id}>
-                    {chore.name} - <strong>{chore.points} points</strong>
+            <ul>
+              {chores.map((chore) => (
+                <li key={chore._id} className={chore.completed ? 'completed' : ''}>
+                  {chore.name} - <strong>{chore.points} points</strong>
+                  <div className="buttons">
+                    <button className="complete-btn" onClick={() => handleCompleteChore(chore)} disabled={chore.completed}>
+                      ✓
+                    </button>
                     <button className="delete-btn" onClick={() => deleteChore(chore._id)}>X</button>
-                  </li>
-                ))}
-              </ul>
-            )}
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
@@ -128,17 +166,19 @@ function App() {
             </form>
           </div>
           <div className="list-container">
-            {rewards.length === 0 ? <p>No rewards available.</p> : (
-              <ul>
-                {rewards.map((reward) => (
-                  <li key={reward._id}>
-                    {reward.name} - <strong>{reward.points} points</strong>
-                    {/* NEW: Delete button */}
+            <ul>
+              {rewards.map((reward) => (
+                <li key={reward._id}>
+                  {reward.name} - <strong>{reward.points} points</strong>
+                  <div className="buttons">
+                    <button className="redeem-btn" onClick={() => handleRedeemReward(reward)} disabled={totalPoints < reward.points}>
+                      Redeem
+                    </button>
                     <button className="delete-btn" onClick={() => deleteReward(reward._id)}>X</button>
-                  </li>
-                ))}
-              </ul>
-            )}
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
       </main>
