@@ -71,6 +71,26 @@ app.post('/api/rewards', async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 });
+// NEW: Route to DELETE a chore
+app.delete('/api/chores/:id', async (req, res) => {
+  try {
+    const chore = await Chore.findByIdAndDelete(req.params.id);
+    if (!chore) return res.status(404).json({ message: 'Chore not found' });
+    res.json({ message: 'Chore deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+// NEW: Route to DELETE a reward
+app.delete('/api/rewards/:id', async (req, res) => {
+  try {
+    const reward = await Reward.findByIdAndDelete(req.params.id);
+    if (!reward) return res.status(404).json({ message: 'Reward not found' });
+    res.json({ message: 'Reward deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 
 // 6. Start the server
